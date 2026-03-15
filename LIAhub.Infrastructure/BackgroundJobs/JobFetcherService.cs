@@ -31,27 +31,34 @@ public class JobFetcherService : BackgroundService
         }
     }
 
-        private async Task FetchAndStoreJobsAsync()
-{
-    try
-    {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var jobSearchService = scope.ServiceProvider.GetRequiredService<JobSearchService>();
-        var notificationService = scope.ServiceProvider.GetRequiredService<NotificationService>();
+            public async Task FetchAndStoreJobsAsync()
+            {
+                try
+                {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var jobSearchService = scope.ServiceProvider.GetRequiredService<JobSearchService>();
+            var notificationService = scope.ServiceProvider.GetRequiredService<NotificationService>();
 
         _logger.LogInformation("Fetching jobs from JobSearch API...");
 
         var jobs = await jobSearchService.FetchLiaJobsAsync();
         _logger.LogInformation("Jobs after filtering: {Count}", jobs.Count);
 
-        var fetchedExternalIds = jobs.Select(j => j.ExternalId).ToHashSet();
+            var fetchedExternalIds = jobs.Select(j => j.ExternalId).ToHashSet();
 
-        // Remove jobs that no longer exist on Arbetsförmedlingen
-        var removed = await db.CachedJobs
-            .Where(j => !fetchedExternalIds.Contains(j.ExternalId))
-            .ToListAsync();
-        db.CachedJobs.RemoveRange(removed);
+            // Remove jobs that no longer exist on Arbetsförmedlingen
+            var removed = await db.CachedJobs
+                .Where(j => !fetchedExternalIds.Contains(j.ExternalId))
+                .ToListAsync();
+            db.CachedJobs.RemoveRange(removed);
+
+            // Add only genuinely new jobs
+            var newJobs = new List<CachedJob>();
+            foreach (var job in jobs)
+            {
+                var exists = await db.CachedJobs
+                    .AnyAsync(j => j.ExternalId == job.ExternalId);
 
         // Add only genuinely new jobs
         var newJobs = new List<CachedJob>();
@@ -70,12 +77,13 @@ public class JobFetcherService : BackgroundService
         await db.SaveChangesAsync();
         _logger.LogInformation("Fetched and stored {Count} jobs.", jobs.Count);
 
-        if (newJobs.Any())
-            await notificationService.SendNewJobNotificationsAsync(newJobs);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error fetching jobs.");
+            if (newJobs.Any())
+                await notificationService.SendNewJobNotificationsAsync(newJobs);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching jobs.");
+        }
     }
 }
 }
