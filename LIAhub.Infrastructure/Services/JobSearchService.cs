@@ -92,7 +92,8 @@ public class JobSearchService
                             FetchedAt = DateTime.UtcNow,
                             WorkMode = workMode,
                             // Cache the listing for 6 hours, then fetch fresh data
-                            ExpiresAt = DateTime.UtcNow.AddHours(6),
+                            ExpiresAt = DateTime.UtcNow.AddHours(12)
+,
                             PublishedAt = hit.PublicationDate.HasValue 
                                 ? DateTime.SpecifyKind(hit.PublicationDate.Value, DateTimeKind.Utc)
                                 : null,

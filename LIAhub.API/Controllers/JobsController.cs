@@ -22,9 +22,7 @@ public class JobsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? skills)
     {
-        var query = _db.CachedJobs
-            .Where(j => j.ExpiresAt > DateTime.UtcNow)
-            .AsQueryable();
+        var query = _db.CachedJobs.AsQueryable();
 
         if (!string.IsNullOrEmpty(city))
             query = query.Where(j => j.City != null &&
